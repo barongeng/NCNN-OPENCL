@@ -28,15 +28,16 @@ Convolution::Convolution()
 
 int Convolution::load_param(const ParamDict& pd)
 {
-    num_output = pd.get(0, 0);
-    kernel_w = pd.get(1, 0);
-    kernel_h = pd.get(11, kernel_w);
-    dilation_w = pd.get(2, 1);
-    dilation_h = pd.get(12, dilation_w);
-    stride_w = pd.get(3, 1);
-    stride_h = pd.get(13, stride_w);
-    pad_w = pd.get(4, 0);
-    pad_h = pd.get(14, pad_w);
+    num_output = pd.get(0, 0);//feature map num，get函数的第二个参数表示默认值，也就是输出MAT的channel数
+							  //所以一个channel对应一个feature map out
+    kernel_w = pd.get(1, 0);//卷积核的宽
+    kernel_h = pd.get(11, kernel_w);//卷积核的高
+    dilation_w = pd.get(2, 1);//水平方向膨胀系数
+    dilation_h = pd.get(12, dilation_w);//垂直方向膨胀系数
+    stride_w = pd.get(3, 1);//水平方向的步长
+    stride_h = pd.get(13, stride_w);//垂直方向的步长
+    pad_w = pd.get(4, 0);//水平方向的填充
+    pad_h = pd.get(14, pad_w);//垂直方向的填充
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
 
@@ -45,6 +46,13 @@ int Convolution::load_param(const ParamDict& pd)
 
 int Convolution::load_model(const ModelBin& mb)
 {
+	//load函数的第二个参数代表type，load后的数据放在一个ncnn::Mat中
+	// element type
+    // 0 = auto
+    // 1 = float32
+    // 2 = float16
+    // 3 = uint8
+    // load vec
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -59,11 +67,13 @@ int Convolution::load_model(const ModelBin& mb)
     return 0;
 }
 
+//input:bottom_blob
+//output:top_blob
 int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
     // value = value + bias
-
+	printf("=====>>>>>get into Convolution::forward!\n");
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
@@ -103,8 +113,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 //     fprintf(stderr, "Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;//根据膨胀系数，算出膨胀后的卷积核宽
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;//根据膨胀系数，算出膨胀后的卷积核高
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
@@ -131,8 +141,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
         h = bottom_blob_bordered.h;
     }
 
-    int outw = (w - kernel_extent_w) / stride_w + 1;
-    int outh = (h - kernel_extent_h) / stride_h + 1;
+    int outw = (w - kernel_extent_w) / stride_w + 1;//输出特征图的宽
+    int outh = (h - kernel_extent_h) / stride_h + 1;//输出特征图的高
 
     top_blob.create(outw, outh, num_output);
     if (top_blob.empty())
